@@ -1,0 +1,41 @@
+{
+  "name": "elastic_search_playground",
+  "version": "1.0.0",
+  "description": "Elastic search playground",
+  "main": "index.js",
+  "scripts": {
+    "transpile": "npm run clean && babel ./ --ignore node_modules --out-dir dist",
+    "clean": "rimraf dist",
+    "dev": "nodemon --exec babel-node -- src/index.js",
+    "start": "npm run transpile && node dist/index.js",
+    "setup": "babel-node setup.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mhaneef50673/elastic_search_playground.git"
+  },
+  "author": "Mohamed Haneef",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/mhaneef50673/elastic_search_playground/issues"
+  },
+  "homepage": "https://github.com/mhaneef50673/elastic_search_playground#readme",
+  "dependencies": {
+    "@elastic/elasticsearch": "7.6.1",
+    "body-parser": "^1.19.0",
+    "cors": "^2.8.5",
+    "express": "^4.17.1",
+    "lodash": "^4.17.21",
+    "morgan": "^1.10.0"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.8.4",
+    "@babel/core": "^7.9.0",
+    "@babel/node": "^7.8.7",
+    "@babel/plugin-transform-runtime": "^7.10.4",
+    "@babel/preset-env": "^7.9.0",
+    "@babel/register": "^7.9.0",
+    "nodemon": "^2.0.7",
+    "rimraf": "^3.0.2"
+  }
+}
