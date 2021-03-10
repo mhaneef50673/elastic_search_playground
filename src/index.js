@@ -1,4 +1,3 @@
-
 const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
@@ -8,7 +7,7 @@ const router = require("./routes");
 
 // util functions
 
-import { createESIndex, getArticles, elasticSearchClient } from "./elastic-search";
+import { createESIndex, elasticSearchClient } from "./elastic-search";
 
 //add other middleware
 app.use(cors());
