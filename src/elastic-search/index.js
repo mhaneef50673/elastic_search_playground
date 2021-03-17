@@ -1,8 +1,8 @@
-import e from "express";
+import { CATEGORY_INDEX_NAME, ARTICLE_INDEX_NAME } from "../constants";
 
 const { Client } = require("@elastic/elasticsearch");
 
-const indexName = "article";
+const defaultIndexName = ARTICLE_INDEX_NAME;
 
 const elasticSearchClient = new Client({
   node: "http://localhost:9200",
@@ -13,7 +13,8 @@ const elasticSearchClient = new Client({
 /**
  * Create elastic search index if it doesnt exists
  */
-const createESIndex = () => {
+const createESIndex = (customIndexName) => {
+  const indexName = customIndexName || defaultIndexName;
   if (!elasticSearchClient) {
     console.log("ES client not initalised");
     return;
@@ -31,8 +32,12 @@ const createESIndex = () => {
             .then(async (r) => {
               console.log("Index created:", indexName);
 
-              // now create article field mapping
-              await createMapping();
+              if (indexName === ARTICLE_INDEX_NAME) {
+                // now create article field mapping
+                await createArticleMapping(indexName);
+              } else if (indexName === CATEGORY_INDEX_NAME) {
+                await createCategoryMapping(indexName);
+              }
               return Promise.resolve(r);
             });
         } else {
@@ -43,55 +48,80 @@ const createESIndex = () => {
     .catch((err) => console.log(err));
 };
 
-const createMapping = () => {
+const createIndexMapping = (indexName, mappingBody) => {
   return elasticSearchClient.indices
     .putMapping({
       index: indexName,
       body: {
-        properties: {
-          article_type: {
-            type: "text",
-          },
-          body_html_ar: {
-            type: "text",
-          },
-          body_html_en: {
-            type: "text",
-          },
-          categories_ar: {
-            type: "text",
-          },
-          categories_en: {
-            type: "text",
-          },
-          mainImageUrl: {
-            type: "text",
-          },
-          publishedDate: {
-            type: "date",
-          },
-          updatedAt: {
-            type: "date",
-          },
-          title_ar: {
-            type: "text",
-          },
-          templateNumber: {
-            type: "long",
-          },
-        },
+        ...mappingBody,
       },
     })
     .then((response, error) => {
       if (error) {
-        console.log("error while creating field mapping", error);
+        console.log(
+          `error while creating field mapping for index ${indexName}`,
+          error
+        );
       }
 
       if (response) {
-        console.log("Mapping created sucessfully");
+        console.log(`Mapping created sucessfully for index ${indexName}`);
       }
     })
     .catch((error) => console.log("error while creating field mapping", error));
+};
+
+const createArticleMapping = (indexName) => {
+  return createIndexMapping(indexName, {
+    properties: {
+      article_type: {
+        type: "text",
+      },
+      body_html_ar: {
+        type: "text",
+      },
+      body_html_en: {
+        type: "text",
+      },
+      categories_ar: {
+        type: "text",
+      },
+      categories_en: {
+        type: "text",
+      },
+      mainImageUrl: {
+        type: "text",
+      },
+      publishedDate: {
+        type: "date",
+      },
+      updatedAt: {
+        type: "date",
+      },
+      title_ar: {
+        type: "text",
+      },
+      templateNumber: {
+        type: "long",
+      },
+    },
+  });
+};
+
+const createCategoryMapping = (indexName) => {
+  return createIndexMapping(indexName, {
+    properties: {
+      name: {
+        properties: {
+          ar: { type: "text" },
+          en: { type: "text" },
+        },
+      },
+      showInMenu: { type: "boolean" },
+      slug: { type: "text" },
+      order: { type: "long" },
+    },
+  });
 };
 
 /**
@@ -102,7 +132,7 @@ const createMapping = () => {
 const getArticleById = async (id) => {
   return elasticSearchClient
     .search({
-      index: indexName,
+      index: defaultIndexName,
       body: {
         query: {
           ids: {
@@ -128,7 +158,7 @@ const getArticleById = async (id) => {
 const getAllArticles = async () => {
   return elasticSearchClient
     .search({
-      index: indexName,
+      index: defaultIndexName,
       body: {
         query: { match_all: {} },
       },
@@ -151,7 +181,7 @@ const getAllArticles = async () => {
 const deleteArticleByID = async (id) => {
   return elasticSearchClient
     .deleteByQuery({
-      index: indexName,
+      index: defaultIndexName,
       body: {
         query: {
           ids: {
@@ -177,7 +207,7 @@ const deleteArticleByID = async (id) => {
 const addArticle = async (articleData) => {
   return elasticSearchClient
     .index({
-      index: indexName,
+      index: defaultIndexName,
       body: {
         ...articleData,
       },
@@ -194,7 +224,7 @@ const addArticle = async (articleData) => {
 const updateArticle = async (id, articleData) => {
   return elasticSearchClient
     .updateByQuery({
-      index: indexName,
+      index: defaultIndexName,
       refresh: true,
       body: {
         script: {
@@ -225,6 +255,80 @@ const updateArticle = async (id, articleData) => {
     .catch((err) => err);
 };
 
+/**
+ * Get All Categories
+ * @returns array of categories
+ */
+const getAllCategories = async () => {
+  return elasticSearchClient
+    .search({
+      index: CATEGORY_INDEX_NAME,
+      body: {
+        query: { match_all: {} },
+      },
+    })
+    .then((res) => {
+      if (res) {
+        return res.body.hits.hits;
+      }
+      return null;
+    })
+    .catch((err) => err);
+};
+
+/**
+ * Add new Category
+ * @param {*} cateogoryData
+ * @returns
+ */
+const addCategory = async (cateogoryData) => {
+  return elasticSearchClient
+    .index({
+      index: CATEGORY_INDEX_NAME,
+      body: {
+        ...cateogoryData,
+      },
+    })
+    .then((response) => response)
+    .catch((err) => err);
+};
+
+const updateCategoriesOrder = async () => {
+  return elasticSearchClient
+    .updateByQuery({
+      index: CATEGORY_INDEX_NAME,
+      refresh: true,
+      body: {
+        script: {
+          lang: "painless",
+          params: {
+            counter: 1,
+          },
+          // source:
+          //  "if (!ctx._source.containsKey('order')) { if(counter) { counter++ } else { counter=1 } ctx._source.order = counter}",
+          source: `
+          if(!ctx._source.containsKey("order")) {
+            ctx._source.order = params.counter;
+          }
+          params.counter = params.counter++;
+          
+          `,
+          // source:
+          // "if(ctx._source.containsKey('order')) { ctx._source.remove('order') }"
+          // source: "ctx._source.order = ctx._source.containsKey('order') ? ctx._source.order += 1 : 1"
+        },
+        query: {
+          /*ids: {
+            values: ["OHMxP3gBd4C1VUXWvL99"],
+          }*/
+          match_all: {},
+        },
+      },
+    })
+    .then((response) => response)
+    .catch((err) => err);
+};
+
 export {
   elasticSearchClient,
   createESIndex,
@@ -233,4 +337,7 @@ export {
   deleteArticleByID,
   addArticle,
   updateArticle,
+  getAllCategories,
+  addCategory,
+  updateCategoriesOrder,
 };

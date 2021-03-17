@@ -22,9 +22,15 @@ router.get("/content", async (req, res) => {
   let response = {};
   if (id) {
     await getArticleById(id)
-      .then((response) => {
+      .then((resp) => {
+        let data = [];
+        if (!isEmpty(resp)) {
+          data = resp.map((cat) => {
+            return { id: cat._id, ...cat._source };
+          });
+        }
         response = {
-          data: response || [],
+          data,
           success: true,
           message: "Article fetched successfully",
           error: null,
@@ -53,16 +59,22 @@ router.get("/content", async (req, res) => {
 router.get("/allcontent", async (req, res) => {
   let response = {};
   await getAllArticles()
-    .then((response) => {
+    .then((resp) => {
+      let data = [];
+      if (!isEmpty(resp)) {
+        data = resp.map((ar) => {
+          return { id: ar._id, ...ar._source };
+        });
+      }
       response = {
-        data: response || [],
+        data: data,
         success: true,
         message: "Articles fetched successfully",
       };
       res.json(response);
     })
     .catch((err) => {
-      console.log(`error while retreiving articles with ${id}`, err);
+      console.log(`error while retreiving articles`, err);
       res.json({
         data: null,
         message: `error while fetching all articles, ${JSON.stringify(err)}`,
