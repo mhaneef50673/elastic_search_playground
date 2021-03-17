@@ -265,6 +265,7 @@ const getAllCategories = async () => {
       index: CATEGORY_INDEX_NAME,
       body: {
         query: { match_all: {} },
+        sort: [{ order: { order: "asc" } }],
       },
     })
     .then((res) => {
@@ -283,50 +284,112 @@ const getAllCategories = async () => {
  */
 const addCategory = async (cateogoryData) => {
   return elasticSearchClient
-    .index({
+    .search({
       index: CATEGORY_INDEX_NAME,
       body: {
-        ...cateogoryData,
-      },
-    })
-    .then((response) => response)
-    .catch((err) => err);
-};
-
-const updateCategoriesOrder = async () => {
-  return elasticSearchClient
-    .updateByQuery({
-      index: CATEGORY_INDEX_NAME,
-      refresh: true,
-      body: {
-        script: {
-          lang: "painless",
-          params: {
-            counter: 1,
-          },
-          // source:
-          //  "if (!ctx._source.containsKey('order')) { if(counter) { counter++ } else { counter=1 } ctx._source.order = counter}",
-          source: `
-          if(!ctx._source.containsKey("order")) {
-            ctx._source.order = params.counter;
-          }
-          params.counter = params.counter++;
-          
-          `,
-          // source:
-          // "if(ctx._source.containsKey('order')) { ctx._source.remove('order') }"
-          // source: "ctx._source.order = ctx._source.containsKey('order') ? ctx._source.order += 1 : 1"
-        },
         query: {
-          /*ids: {
-            values: ["OHMxP3gBd4C1VUXWvL99"],
-          }*/
           match_all: {},
         },
+        sort: [{ order: { order: "asc" } }],
       },
     })
-    .then((response) => response)
-    .catch((err) => err);
+    .then((resp) => {
+      if (resp) {
+        const categories = resp.body.hits.hits || [];
+        const lastCat =
+          categories && categories.length > 0
+            ? categories[categories.length - 1]
+            : null;
+        let order = 0;
+        if (lastCat) {
+          order = lastCat._source.order + 1;
+        }
+        const data = { ...cateogoryData, order };
+        console.log("data is ", data);
+        return elasticSearchClient
+          .index({
+            index: CATEGORY_INDEX_NAME,
+            body: {
+              ...data,
+            },
+          })
+          .then((response) => response)
+          .catch((err) => err);
+      }
+    });
+};
+
+/**
+ * Updates category order field incremently
+ * @returns boolean
+ */
+const updateCategoriesOrder = async () => {
+  return elasticSearchClient
+    .search({
+      index: CATEGORY_INDEX_NAME,
+      body: {
+        query: { match_all: {} },
+      },
+    })
+    .then((res) => {
+      if (res) {
+        const categories = res.body.hits.hits || [];
+        categories.map(async (category, index) => {
+          await elasticSearchClient.updateByQuery({
+            index: CATEGORY_INDEX_NAME,
+            refresh: true,
+            body: {
+              script: {
+                lang: "painless",
+                source: "ctx._source.order = params.order",
+                params: {
+                  order: index + 1,
+                },
+              },
+              query: {
+                ids: {
+                  values: [category._id],
+                },
+              },
+            },
+          });
+        });
+        return true;
+      } else {
+        return false;
+      }
+    })
+    .catch((err) => {
+      console.log("error while updating category order", err);
+      return false;
+    });
+};
+
+/**
+ * Delete category by ID
+ * @param {*} id category id to be deleted
+ * @returns 
+ */
+const deleteCategoryById = async (id) => {
+  return elasticSearchClient
+    .deleteByQuery({
+      index: CATEGORY_INDEX_NAME,
+      body: {
+        query: {
+          ids: {
+            values: [id],
+          },
+        },
+      },
+    })
+    .then((res) => {
+      if (res) {
+        return res.body.deleted === 1;
+      }
+
+      return false;
+    })
+    .catch((err) => console.log(JSON.stringify(err)));
 };
 
 export {
@@ -340,4 +403,5 @@ export {
   getAllCategories,
   addCategory,
   updateCategoriesOrder,
+  deleteCategoryById,
 };

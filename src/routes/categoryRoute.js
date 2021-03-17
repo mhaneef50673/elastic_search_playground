@@ -7,6 +7,7 @@ import {
   getAllCategories,
   addCategory,
   updateCategoriesOrder,
+  deleteCategoryById,
 } from "../elastic-search";
 
 // get category route.
@@ -72,11 +73,19 @@ categoryRouter.post("/updateCategoriesOrder", async (req, res) => {
   let response = {};
   await updateCategoriesOrder()
     .then((resp) => {
-      console.log("resp", JSON.stringify(resp));
-      response = {
-        success: true,
-        message: "category order updated successfully",
-      };
+      if (resp) {
+        console.log("resp", resp);
+        response = {
+          success: true,
+          message: "category order updated successfully",
+        };
+      } else {
+        response = {
+          success: false,
+          message: "category order not updated",
+        };
+      }
+
       res.json(response);
     })
     .catch((err) => {
@@ -86,4 +95,40 @@ categoryRouter.post("/updateCategoriesOrder", async (req, res) => {
         success: false,
       });
     });
+});
+
+categoryRouter.delete("/deletecategory", async (req, res) => {
+  const reqBody = req.body;
+  const { id } = reqBody;
+  let response = {};
+  if (id) {
+    await deleteCategoryById(id)
+      .then((response) => {
+        if (response) {
+          response = {
+            success: true,
+            message: "category deleted successfully",
+          };
+        } else {
+          response = {
+            success: false,
+            message: "category doesnt exists",
+          };
+        }
+        res.json(response);
+      })
+      .catch((err) => {
+        console.log(`error while deleting category with ${id}`, err);
+        res.json({
+          message: `Error while deleting the category`,
+          success: false,
+        });
+      });
+  } else {
+    response = {
+      message: "Error while deleting category, ID is required parameter",
+      success: false,
+    };
+    res.json(response);
+  }
 });
