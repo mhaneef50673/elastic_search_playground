@@ -229,19 +229,9 @@ const updateArticle = async (id, articleData) => {
       body: {
         script: {
           lang: "painless",
-          inline:
-            "ctx._source.article_type = params.article_type; ctx._source.body_html_ar = params.body_html_ar; ctx._source.body_html_en = params.body_html_en; ctx._source.categories_ar = params.categories_ar; ctx._source.categories_en = params.categories_en; ctx._source.mainImageUrl = params.mainImageUrl; ctx._source.title_ar = params.title_ar; ctx._source.templateNumber = params.templateNumber; ctx._source.publishedDate = params.publishedDate; ctx._source.updatedAt = params.updatedAt",
+          source: "ctx._source = params",
           params: {
-            article_type: articleData.article_type,
-            body_html_ar: articleData.body_html_ar,
-            body_html_en: articleData.body_html_en,
-            categories_ar: articleData.categories_ar,
-            categories_en: articleData.categories_en,
-            mainImageUrl: articleData.mainImageUrl,
-            title_ar: articleData.title_ar,
-            templateNumber: articleData.templateNumber,
-            publishedDate: articleData.publishedDate,
-            updatedAt: articleData.updatedAt,
+            ...articleData,
           },
         },
         query: {
@@ -368,7 +358,7 @@ const updateCategoriesOrder = async () => {
 /**
  * Delete category by ID
  * @param {*} id category id to be deleted
- * @returns 
+ * @returns
  */
 const deleteCategoryById = async (id) => {
   return elasticSearchClient
